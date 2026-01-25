@@ -1,0 +1,39 @@
+<div class="table-box">
+  <h2>{{ .Entry.Name }}</h2>
+
+  <p><strong>Rating:</strong> {{ .Entry.Rating }}/10</p>
+
+  <p>
+    <strong>Category:</strong>
+    {{ .Entry.Category.MainCategory.Name }} →
+    {{ .Entry.Category.Name }}
+  </p>
+
+  {{ if .Entry.Tags }}
+  <p>
+    <strong>Tags:</strong>
+    {{ range .Entry.Tags }}
+      <span>{{ .Name }}</span>
+    {{ end }}
+  </p>
+  {{ end }}
+
+  <hr>
+
+  <div class="actions">
+    <button class="form-input"
+            hx-get="/entries/{{ .Entry.ID }}/edit"
+            hx-target=".content"
+            hx-swap="innerHTML">
+      Edit
+    </button>
+
+    <button class="form-input"
+            hx-post="/entries/{{ .Entry.ID }}/delete"
+            hx-confirm="Delete this entry?"
+            hx-target=".content"
+            hx-swap="innerHTML">
+      Delete
+    </button>
+  </div>
+</div>

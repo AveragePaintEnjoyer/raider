@@ -1,0 +1,50 @@
+<div class="table-box">
+  <h2>Edit Entry</h2>
+
+  <form hx-post="/entries/{{ .Entry.ID }}/edit"
+        hx-target=".content"
+        hx-swap="innerHTML">
+
+    <label>Name:
+      <input class="form-input"
+             type="text"
+             name="name"
+             value="{{ .Entry.Name }}"
+             required>
+    </label>
+
+    <label>Rating:
+      <input class="form-input"
+             type="number"
+             name="rating"
+             min="1"
+             max="10"
+             value="{{ .Entry.Rating }}">
+    </label>
+
+    <label>Category:
+      <select class="form-input" name="category_id">
+        {{ range .Categories }}
+          <option value="{{ .ID }}"
+            {{ if eq .ID $.Entry.CategoryID }}selected{{ end }}>
+            {{ .Name }}
+          </option>
+        {{ end }}
+      </select>
+    </label>
+
+    <div class="actions">
+      <button class="form-input add-btn" type="submit">
+        Save
+      </button>
+
+      <button class="form-input"
+              hx-get="/entries/{{ .Entry.ID }}"
+              hx-target=".content"
+              hx-swap="innerHTML"
+              type="button">
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

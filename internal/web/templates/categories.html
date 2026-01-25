@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>raider</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script>
+function toggleDarkMode() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+}
+
+window.onload = function() {
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark');
+  }
+};
+</script>
+</head>
+<body>
+<h1>raider</h1>
+
+<div class="menu-bar">
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/categories">Manage categories</a>
+    <a href="/tags">Manage tags</a>
+  </div>
+  <div class="toggle-btn" onclick="toggleDarkMode()">Dark mode</div>
+</div>
+
+
+<!-- Add Main Category Form -->
+<form action="/main-categories/add" method="POST" class="table-box">
+  <label>Name:
+    <input class="form-input" type="text" name="name" required>
+  </label>
+
+  <button class="form-input add-btn" type="submit">Add main category</button>
+</form>
+
+<div class="table-box">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .MainCategories }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td>
+          <form action="/main-categories/delete/{{ .ID }}" method="POST"
+                onsubmit="return confirm('Delete this main category?');">
+            <button class="form-input" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{ else }}
+      <tr><td colspan="2">No main categories yet.</td></tr>
+      {{ end }}
+    </tbody>
+  </table>
+</div>
+
+
+<!-- Add Category Form -->
+<form action="/categories/add" method="POST" class="table-box">
+  <label>Name:
+    <input class="form-input" type="text" name="name" required>
+  </label>
+
+  <label>Main category:
+    <select class="form-input" name="main_category_id" required>
+      <option value="">-- select --</option>
+      {{ range .MainCategories }}
+        <option value="{{ .ID }}">{{ .Name }}</option>
+      {{ end }}
+    </select>
+  </label>
+
+  <button class="form-input add-btn" type="submit">Add category</button>
+</form>
+
+<div class="table-box">
+  {{ range .MainCategories }}
+    <h3>{{ .Name }}</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ $mid := .ID }}
+        {{ range $.Categories }}
+          {{ if eq .MainCategoryID $mid }}
+          <tr>
+            <td>{{ .Name }}</td>
+            <td>
+              <form action="/categories/delete/{{ .ID }}" method="POST"
+                    onsubmit="return confirm('Delete this category?');">
+                <button class="form-input" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {{ end }}
+        {{ end }}
+      </tbody>
+    </table>
+  {{ end }}
+</div>
+
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+<div class="table-box">
+  <h2>New Entry</h2>
+
+  <form hx-post="/entries/add"
+        hx-target=".content"
+        hx-swap="innerHTML">
+
+    <label>Name:
+      <input class="form-input" type="text" name="name" required>
+    </label>
+
+    <label>Rating:
+      <input class="form-input" type="number" name="rating" min="1" max="10">
+    </label>
+
+    <label>Category:
+      <select class="form-input" name="category_id" required>
+        {{ range .Categories }}
+          <option value="{{ .ID }}"
+            {{ if eq .ID $.CategoryID }}selected{{ end }}>
+            {{ .Name }}
+          </option>
+        {{ end }}
+      </select>
+    </label>
+
+    <div class="actions">
+      <button class="form-input add-btn" type="submit">Add</button>
+      <button class="form-input"
+              hx-get="/"
+              hx-target=".content"
+              hx-swap="innerHTML"
+              type="button">Cancel</button>
+    </div>
+  </form>
+</div>

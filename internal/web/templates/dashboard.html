@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>raider</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script>
+function toggleDarkMode() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+}
+
+window.onload = function() {
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark');
+  }
+};
+</script>
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+<h1>raider</h1>
+
+<div class="menu-bar">
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/categories">Manage categories</a>
+    <a href="/tags">Manage tags</a>
+  </div>
+  <div class="toggle-btn" onclick="toggleDarkMode()">Dark mode</div>
+</div>
+
+
+<div class="layout">
+  <!-- LEFT SIDE -->
+  <div class="sidebar">
+    <div class="table-box">
+
+      {{ if not .MainCategories }}
+        <p>No categories yet.</p>
+      {{ end }}
+
+      {{ range .MainCategories }}
+        <details class="category">
+          <summary class="main-cat">
+            {{ .Name }}
+          </summary>
+
+          <div class="sub-cat-container">
+            {{ range .Categories }}
+              <details class="category sub-cat">
+                <summary>
+                  <span class="cat-name">{{ .Name }}</span>
+                  <span class="cat-count">({{ len .Entries }})</span>
+                  <span class="cat-add"
+                        hx-get="/entries/new?category_id={{ .ID }}"
+                        hx-target=".content"
+                        hx-swap="innerHTML"
+                        hx-on="htmx:afterRequest: htmx.ajax('GET', '/sidebar', '#sidebar')"
+                        title="Add entry">
+                      ＋
+                  </span>
+                </summary>
+
+                {{ if .Entries }}
+                  <ul class="entry-list">
+                    {{ range .Entries }}
+                      <li class="entry-item"
+                          hx-get="/entries/{{ .ID }}"
+                          hx-target=".content"
+                          hx-swap="innerHTML">
+                        {{ .Name }}
+                      </li>
+                    {{ end }}
+                  </ul>
+                {{ else }}
+                  <p class="empty"><em>No entries yet.</em></p>
+                {{ end }}
+              </details>
+            {{ end }}
+          </div>
+
+        </details>
+      {{ end }}
+
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="content">
+    <p class="placeholder">
+      Select an entry to see details here.
+    </p>
+  </div>
+</div>
+
+
+</body>
+</html>
