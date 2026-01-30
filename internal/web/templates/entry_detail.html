@@ -10,12 +10,13 @@
   </p>
 
   {{ if .Entry.Tags }}
-  <p>
-    <strong>Tags:</strong>
-    {{ range .Entry.Tags }}
-      <span>{{ .Name }}</span>
-    {{ end }}
-  </p>
+    <p>Tags:
+      {{ range $i, $tag := .Entry.Tags }}
+        {{ if $i }}, {{ end }}{{ $tag.Name }}
+      {{ end }}
+    </p>
+  {{ else }}
+    <p><em>Tags: none</em></p>
   {{ end }}
 
   <hr>

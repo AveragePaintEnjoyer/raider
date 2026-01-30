@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>raider</title>
 <link rel="stylesheet" href="/static/css/style.css">
+<link rel="icon" type="image/x-icon" href="/static/img/favicon.png">
 <script>
 function toggleDarkMode() {
   document.body.classList.toggle('dark');
@@ -15,6 +16,32 @@ window.onload = function() {
     document.body.classList.add('dark');
   }
 };
+
+function saveTreeState() {
+  document.querySelectorAll("details[data-key]").forEach(d => {
+    localStorage.setItem("tree:" + d.dataset.key, d.open ? "1" : "0");
+  });
+}
+
+function restoreTreeState() {
+  document.querySelectorAll("details[data-key]").forEach(d => {
+    const state = localStorage.getItem("tree:" + d.dataset.key);
+    if (state === "1") d.open = true;
+  });
+}
+
+/* save when toggling */
+document.body.addEventListener("toggle", e => {
+  if (e.target.matches("details[data-key]")) saveTreeState();
+});
+
+/* restore after sidebar swap */
+document.body.addEventListener("htmx:afterSwap", e => {
+  if (e.target.id === "sidebar") restoreTreeState();
+});
+
+/* initial load restore */
+window.addEventListener("load", restoreTreeState);
 </script>
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
@@ -30,64 +57,21 @@ window.onload = function() {
   <div class="toggle-btn" onclick="toggleDarkMode()">Dark mode</div>
 </div>
 
-
 <div class="layout">
   <!-- LEFT SIDE -->
-  <div class="sidebar">
+  <div id="sidebar"
+      class="sidebar"
+      hx-get="/sidebar"
+      hx-trigger="load, refreshSidebar from:body"
+      hx-swap="innerHTML">
     <div class="table-box">
-
-      {{ if not .MainCategories }}
-        <p>No categories yet.</p>
-      {{ end }}
-
-      {{ range .MainCategories }}
-        <details class="category">
-          <summary class="main-cat">
-            {{ .Name }}
-          </summary>
-
-          <div class="sub-cat-container">
-            {{ range .Categories }}
-              <details class="category sub-cat">
-                <summary>
-                  <span class="cat-name">{{ .Name }}</span>
-                  <span class="cat-count">({{ len .Entries }})</span>
-                  <span class="cat-add"
-                        hx-get="/entries/new?category_id={{ .ID }}"
-                        hx-target=".content"
-                        hx-swap="innerHTML"
-                        hx-on="htmx:afterRequest: htmx.ajax('GET', '/sidebar', '#sidebar')"
-                        title="Add entry">
-                      ＋
-                  </span>
-                </summary>
-
-                {{ if .Entries }}
-                  <ul class="entry-list">
-                    {{ range .Entries }}
-                      <li class="entry-item"
-                          hx-get="/entries/{{ .ID }}"
-                          hx-target=".content"
-                          hx-swap="innerHTML">
-                        {{ .Name }}
-                      </li>
-                    {{ end }}
-                  </ul>
-                {{ else }}
-                  <p class="empty"><em>No entries yet.</em></p>
-                {{ end }}
-              </details>
-            {{ end }}
-          </div>
-
-        </details>
-      {{ end }}
-
+      <em>Loading…</em>
     </div>
   </div>
 
   <!-- RIGHT SIDE -->
-  <div class="content">
+  <div class="content"
+      hx-trigger="refreshContent from:body">
     <p class="placeholder">
       Select an entry to see details here.
     </p>

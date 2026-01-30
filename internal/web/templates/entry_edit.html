@@ -33,6 +33,21 @@
       </select>
     </label>
 
+    <label>Tags:
+      <select class="form-input" name="tags" multiple>
+        {{ range .Tags }}
+          <option value="{{ .ID }}"
+            {{ if $.Entry }}
+              {{ range $.Entry.Tags }}
+                {{ if eq .ID $.ID }}selected{{ end }}
+              {{ end }}
+            {{ end }}>
+            {{ .Name }}
+          </option>
+        {{ end }}
+      </select>
+    </label>
+
     <div class="actions">
       <button class="form-input add-btn" type="submit">
         Save

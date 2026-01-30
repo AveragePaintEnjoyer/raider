@@ -218,3 +218,52 @@ body.dark .entry-item {
 body.dark .entry-item:hover {
   background: #2a2a2a;
 }
+
+.tag-input-wrapper {
+  position: relative;
+  border: 2px solid #000;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.tag-chip {
+  background: #ccc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.tag-chip span {
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.tag-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #000;
+  background: #fff;
+  z-index: 10;
+  display: none;
+}
+
+.tag-option {
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.tag-option:hover {
+  background: #eee;
+}

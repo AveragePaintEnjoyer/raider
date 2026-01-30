@@ -1,0 +1,49 @@
+    <div class="table-box">
+
+      {{ if not .MainCategories }}
+        <p>No categories yet.</p>
+      {{ end }}
+
+      {{ range .MainCategories }}
+        <details class="category" data-key="main-{{ .ID }}">
+          <summary class="main-cat">
+            {{ .Name }}
+          </summary>
+
+          <div class="sub-cat-container">
+            {{ range .Categories }}
+              <details class="category sub-cat" data-key="cat-{{ .ID }}">
+                <summary>
+                  <span class="cat-name">{{ .Name }}</span>
+                  <span class="cat-count">({{ len .Entries }})</span>
+                  <span class="cat-add"
+                        hx-get="/entries/new?category_id={{ .ID }}"
+                        hx-target=".content"
+                        hx-swap="innerHTML"
+                        title="Add entry">
+                      ＋
+                  </span>
+                </summary>
+
+                {{ if .Entries }}
+                  <ul class="entry-list">
+                    {{ range .Entries }}
+                      <li class="entry-item"
+                          hx-get="/entries/{{ .ID }}"
+                          hx-target=".content"
+                          hx-swap="innerHTML">
+                        {{ .Name }}
+                      </li>
+                    {{ end }}
+                  </ul>
+                {{ else }}
+                  <p class="empty"><em>No entries yet.</em></p>
+                {{ end }}
+              </details>
+            {{ end }}
+          </div>
+
+        </details>
+      {{ end }}
+
+    </div>

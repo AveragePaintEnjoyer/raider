@@ -5,6 +5,7 @@ import (
 	"raider/internal/models"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,6 +13,7 @@ import (
 func SetupRoutes(app *fiber.App) {
 	app.Get("/", Dashboard)
 	app.Get("/categories", Categories)
+	app.Get("/sidebar", Sidebar)
 	app.Get("/entries/new", EntryNew)
 	app.Post("/entries/add", EntryAdd)
 	app.Get("/entries/:id", EntryView)
@@ -28,6 +30,10 @@ func SetupRoutes(app *fiber.App) {
 }
 
 func Dashboard(c *fiber.Ctx) error {
+	return c.Render("dashboard", fiber.Map{})
+}
+
+func Sidebar(c *fiber.Ctx) error {
 	var mainCats []models.MainCategory
 	db.DB.Order("name asc").Find(&mainCats)
 
@@ -37,7 +43,7 @@ func Dashboard(c *fiber.Ctx) error {
 	var entries []models.Entry
 	db.DB.Order("name asc").Find(&entries)
 
-	// Map categories → entries
+	// Category → entries
 	catMap := make(map[uint]*CategoryWithEntries)
 	for _, cat := range categories {
 		catMap[cat.ID] = &CategoryWithEntries{
@@ -53,7 +59,7 @@ func Dashboard(c *fiber.Ctx) error {
 		}
 	}
 
-	// Map main categories → categories
+	// MainCategory → categories
 	mainMap := make(map[uint]*MainCategoryWithCategories)
 	for _, mc := range mainCats {
 		mainMap[mc.ID] = &MainCategoryWithCategories{
@@ -71,18 +77,16 @@ func Dashboard(c *fiber.Ctx) error {
 		}
 	}
 
-	// Convert to slice
 	var result []MainCategoryWithCategories
 	for _, v := range mainMap {
 		result = append(result, *v)
 	}
 
-	// Sort main categories alphabetically
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Name < result[j].Name
 	})
 
-	return c.Render("dashboard", fiber.Map{
+	return c.Render("sidebar", fiber.Map{
 		"MainCategories": result,
 	})
 }
@@ -115,10 +119,14 @@ func EntryNew(c *fiber.Ctx) error {
 	var categories []models.Category
 	db.DB.Order("name asc").Find(&categories)
 
+	var tags []models.Tag
+	db.DB.Order("name asc").Find(&tags)
+
 	return c.Render("entry_add", fiber.Map{
 		"CategoryID": categoryID,
 		"Categories": categories,
-	}, "")
+		"Tags":       tags,
+	})
 }
 
 func EntryAdd(c *fiber.Ctx) error {
@@ -126,15 +134,27 @@ func EntryAdd(c *fiber.Ctx) error {
 	rating, _ := strconv.Atoi(c.FormValue("rating"))
 	categoryID, _ := strconv.Atoi(c.FormValue("category_id"))
 
+	tagIDs := c.FormValue("tags")
+	tags := []models.Tag{}
+	for _, s := range strings.Split(tagIDs, ",") {
+		if id, err := strconv.Atoi(s); err == nil {
+			var tag models.Tag
+			db.DB.First(&tag, id)
+			tags = append(tags, tag)
+		}
+	}
+
 	entry := models.Entry{
 		Name:       name,
 		Rating:     rating,
 		CategoryID: uint(categoryID),
+		Tags:       tags,
 	}
 
 	db.DB.Create(&entry)
 
 	// Return detail view of the newly created entry in right panel
+	c.Set("HX-Trigger", "refreshSidebar")
 	return c.Render("entry_detail", fiber.Map{
 		"Entry": entry,
 	}, "")
@@ -146,6 +166,7 @@ func EntryEdit(c *fiber.Ctx) error {
 	var entry models.Entry
 	if err := db.DB.
 		Preload("Category").
+		Preload("Tags").
 		First(&entry, id).Error; err != nil {
 		return c.Status(404).SendString("Entry not found")
 	}
@@ -153,16 +174,21 @@ func EntryEdit(c *fiber.Ctx) error {
 	var categories []models.Category
 	db.DB.Order("name asc").Find(&categories)
 
+	var tags []models.Tag
+	db.DB.Order("name asc").Find(&tags)
+
 	return c.Render("entry_edit", fiber.Map{
 		"Entry":      entry,
 		"Categories": categories,
-	}, "")
+		"Tags":       tags,
+	})
 }
 
 func EntryDelete(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	db.DB.Delete(&models.Entry{}, id)
+	c.Set("HX-Trigger", "refreshSidebar")
 	return c.SendString(`
 		<div class="table-box">
 			<p><em>Entry deleted.</em></p>
@@ -176,16 +202,30 @@ func EntryEditSubmit(c *fiber.Ctx) error {
 	rating, _ := strconv.Atoi(c.FormValue("rating"))
 	categoryID, _ := strconv.Atoi(c.FormValue("category_id"))
 
-	db.DB.Model(&models.Entry{}).
-		Where("id = ?", id).
-		Updates(models.Entry{
-			Name:       c.FormValue("name"),
-			Rating:     rating,
-			CategoryID: uint(categoryID),
-		})
+	entry := models.Entry{}
+	db.DB.Preload("Tags").First(&entry, id)
 
-	// Reload updated entry view
-	return c.Redirect("/entries/" + id)
+	entry.Name = c.FormValue("name")
+	entry.Rating = rating
+	entry.CategoryID = uint(categoryID)
+
+	tagIDs := c.FormValue("tags")
+	tags := []models.Tag{}
+	for _, s := range strings.Split(tagIDs, ",") {
+		if tid, err := strconv.Atoi(s); err == nil {
+			var tag models.Tag
+			db.DB.First(&tag, tid)
+			tags = append(tags, tag)
+		}
+	}
+	db.DB.Model(&entry).Association("Tags").Replace(tags)
+
+	db.DB.Save(&entry)
+
+	c.Set("HX-Trigger", "refreshSidebar")
+	return c.Render("entry_detail", fiber.Map{
+		"Entry": entry,
+	}, "")
 }
 
 func Categories(c *fiber.Ctx) error {
