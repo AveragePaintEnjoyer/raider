@@ -1,0 +1,5 @@
+{{ if .Entry.ImagePath }}
+<div class="entry-image">
+  <img src="{{ .Entry.ImagePath }}?v={{ .Entry.UpdatedAt.Unix }}" alt="Image">
+</div>
+{{ end }}

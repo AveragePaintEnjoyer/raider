@@ -9,14 +9,21 @@
     {{ .Entry.Category.Name }}
   </p>
 
-  {{ if .Entry.Tags }}
-    <p>Tags:
-      {{ range $i, $tag := .Entry.Tags }}
-        {{ if $i }}, {{ end }}{{ $tag.Name }}
+  <p class="tag-line">
+    <strong>Tags:</strong>
+    {{ if .Entry.Tags }}
+      {{ range .Entry.Tags }}
+        <span class="tag-label">{{ .Name }}</span>
       {{ end }}
-    </p>
-  {{ else }}
-    <p><em>Tags: none</em></p>
+    {{ else }}
+      <span class="tag-none">none</span>
+    {{ end }}
+  </p>
+
+  {{ if .Entry.ImagePath }}
+  <div id="entry-image">
+    {{ template "entry_image" . }}
+  </div>
   {{ end }}
 
   <hr>

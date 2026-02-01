@@ -1,6 +1,8 @@
 package web
 
 import (
+	"os"
+	"path/filepath"
 	"raider/internal/db"
 	"raider/internal/models"
 	"sort"
@@ -17,6 +19,7 @@ func SetupRoutes(app *fiber.App) {
 	app.Get("/entries/new", EntryNew)
 	app.Post("/entries/add", EntryAdd)
 	app.Get("/entries/:id", EntryView)
+	app.Post("/entries/:id/image", EntryImageUpload)
 	app.Get("/entries/:id/edit", EntryEdit)
 	app.Post("/entries/:id/edit", EntryEditSubmit)
 	app.Post("/entries/:id/delete", EntryDelete)
@@ -109,6 +112,37 @@ func EntryView(c *fiber.Ctx) error {
 	}, "")
 }
 
+func EntryImageUpload(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var entry models.Entry
+	if err := db.DB.First(&entry, id).Error; err != nil {
+		return c.Status(404).SendString("Entry not found")
+	}
+
+	file, err := c.FormFile("image")
+	if err != nil || file == nil {
+		return c.Status(400).SendString("No file uploaded")
+	}
+
+	ext := filepath.Ext(file.Filename)
+	fsPath, webPath := EntryImagePath(entry.ID, ext)
+
+	if err := os.MkdirAll(filepath.Dir(fsPath), 0755); err != nil {
+		return c.Status(500).SendString("Failed to create upload directory")
+	}
+
+	if err := c.SaveFile(file, fsPath); err != nil {
+		return c.Status(500).SendString("Failed to save image")
+	}
+
+	entry.ImagePath = &webPath
+	db.DB.Save(&entry)
+
+	return c.Render("entry_image", fiber.Map{
+		"Entry": entry,
+	})
+}
 func EntryNew(c *fiber.Ctx) error {
 	categoryIDStr := c.Query("category_id")
 	var categoryID uint
@@ -152,6 +186,18 @@ func EntryAdd(c *fiber.Ctx) error {
 	}
 
 	db.DB.Create(&entry)
+
+	file, err := c.FormFile("image")
+	if err == nil && file != nil {
+		ext := filepath.Ext(file.Filename)
+		fsPath, webPath := EntryImagePath(entry.ID, ext)
+
+		_ = os.MkdirAll(filepath.Dir(fsPath), 0755)
+		_ = c.SaveFile(file, fsPath)
+
+		entry.ImagePath = &webPath
+		db.DB.Save(&entry)
+	}
 
 	// Return detail view of the newly created entry in right panel
 	c.Set("HX-Trigger", "refreshSidebar")
@@ -219,6 +265,20 @@ func EntryEditSubmit(c *fiber.Ctx) error {
 		}
 	}
 	db.DB.Model(&entry).Association("Tags").Replace(tags)
+
+	file, err := c.FormFile("image")
+	if err == nil && file != nil {
+		ext := filepath.Ext(file.Filename)
+		fsPath, webPath := EntryImagePath(entry.ID, ext)
+
+		_ = os.MkdirAll(filepath.Dir(fsPath), 0755)
+
+		if err := c.SaveFile(file, fsPath); err != nil {
+			return c.Status(500).SendString("Failed to save image")
+		}
+
+		entry.ImagePath = &webPath
+	}
 
 	db.DB.Save(&entry)
 

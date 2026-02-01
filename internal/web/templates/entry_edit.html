@@ -3,7 +3,9 @@
 
   <form hx-post="/entries/{{ .Entry.ID }}/edit"
         hx-target=".content"
-        hx-swap="innerHTML">
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        enctype="multipart/form-data">
 
     <label>Name:
       <input class="form-input"
@@ -33,19 +35,47 @@
       </select>
     </label>
 
-    <label>Tags:
-      <select class="form-input" name="tags" multiple>
-        {{ range .Tags }}
-          <option value="{{ .ID }}"
-            {{ if $.Entry }}
-              {{ range $.Entry.Tags }}
-                {{ if eq .ID $.ID }}selected{{ end }}
-              {{ end }}
-            {{ end }}>
-            {{ .Name }}
-          </option>
-        {{ end }}
-      </select>
+    <div class="form-group">
+      <label>Tags:</label>
+
+      <div class="tag-select">
+        <!-- Selected tags -->
+        <div class="tag-input" tabindex="0">
+          <div id="selected-tags" class="tag-chips">
+            {{ range .Entry.Tags }}
+              <span class="tag-chip" data-id="{{ .ID }}">
+                {{ .Name }}
+                <button type="button" class="remove">&times;</button>
+              </span>
+            {{ end }}
+          </div>
+          <input type="text" placeholder="Add tag…" class="tag-search">
+        </div>
+
+        <!-- Dropdown -->
+        <div class="tag-dropdown">
+          {{ range .Tags }}
+            <div class="tag-option" data-id="{{ .ID }}">
+              {{ .Name }}
+            </div>
+          {{ end }}
+        </div>
+
+        <input type="hidden" name="tags" id="tags-input">
+      </div>
+    </div>
+
+    <label>
+      Image:
+      {{ if .Entry.ImagePath }}
+        <div id="entry-image">
+          {{ template "entry_image" . }}
+        </div>
+      {{ end }}
+
+      <input type="file"
+            name="image"
+            accept="image/*">
     </label>
 
     <div class="actions">

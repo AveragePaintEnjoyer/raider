@@ -11,7 +11,7 @@ type Entry struct {
 	Category   Category
 	Rating     int `gorm:"check:rating >= 1 AND rating <= 10"`
 	//Notes       string
-	//ImagePath   *string
+	ImagePath *string
 	Tags      []Tag `gorm:"many2many:entry_tags;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
