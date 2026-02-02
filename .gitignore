@@ -1,5 +1,6 @@
 # Custom
 .backup/
+cert/
 .DS_Store
 *.db
 internal/web/static/uploads/entries/*

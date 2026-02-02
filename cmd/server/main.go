@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"log"
 	"os"
 
@@ -20,20 +22,40 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func mustLoadCA(path string) *x509.CertPool {
+	caCert, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatalf("failed to read CA cert: %v", err)
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caCert) {
+		log.Fatal("failed to append CA cert")
+	}
+	return pool
+}
+
+func mustLoadServerCert(certFile, keyFile string) tls.Certificate {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		log.Fatalf("failed to load server cert/key: %v", err)
+	}
+	return cert
+}
+
 func main() {
-	// Load .env if exists
 	_ = godotenv.Load()
 
-	// Configurable values from env
 	host := getEnv("WEB_HOST", "0.0.0.0")
 	port := getEnv("WEB_PORT", "8080")
 	dbPath := getEnv("DB_PATH", "/tmp/raider.db")
+	caPath := getEnv("CA_PATH", "/tmp/ca.pem")
+	certPath := getEnv("CERT_PATH", "/tmp/server.pem")
+	keyPath := getEnv("KEY_PATH", "/tmp/server.key")
 	staticPath := getEnv("STATIC_PATH", "/tmp/static/")
 
-	// Initialize database
 	db.InitDB(dbPath)
 
-	// Setup template engine
 	engine := html.New("./internal/web/templates", ".html")
 	engine.Reload(true)
 
@@ -44,6 +66,20 @@ func main() {
 
 	web.SetupRoutes(app)
 
-	log.Printf("Server running at http://%s:%s\n", host, port)
-	log.Fatal(app.Listen(host + ":" + port))
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{
+			mustLoadServerCert(certPath, keyPath),
+		},
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:  mustLoadCA(caPath),
+		MinVersion: tls.VersionTLS13,
+	}
+
+	ln, err := tls.Listen("tcp", host+":"+port, tlsConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Secure Raider running at https://%s:%s\n", host, port)
+	log.Fatal(app.Listener(ln))
 }
