@@ -1,0 +1,25 @@
+#
+# --> PFX creation needs to be fixed, expects password
+#
+
+- name: Replace nginx config with mtls setup
+  hosts: webservers
+  become: true
+  vars:
+    # custom var -> change this to your own config
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+    
+    # mtls
+    mtls_dir: /etc/nginx/mtls
+    client_name: niklas
+  tasks:
+    - name: Create client pfx
+      command: >
+        openssl pkcs12 -export -out {{ mtls_dir }}/clients/{{ client_name }}.pfx -inkey {{ mtls_dir }}/clients/{{ client_name }}.key -in {{ mtls_dir }}/clients/{{ client_name }}.crt -certfile {{ mtls_dir }}/ca.crt
+      args:
+        creates: "{{ mtls_dir }}/clients/{{ client_name }}.pfx"
+
+    - name: Copy pfx to local machine
+      copy:
+        src: "{{ mtls_dir }}/clients/{{ client_name }}.pfx"
+        dst: "{{ local_dir }}"

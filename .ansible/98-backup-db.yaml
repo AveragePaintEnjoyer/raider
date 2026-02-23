@@ -1,0 +1,21 @@
+#
+# --> not sure what i was doing here???
+#
+- name: Database operations
+  hosts: webservers
+  become: true
+  vars:
+    # custom var -> change this to your own config
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+
+    # generic var
+    webapp_user: raider
+    webapp_home: "/srv/{{ webapp_user }}"
+    app_path: "/srv/{{ webapp_user }}/raider"
+    static_path: "/srv/{{ webapp_user }}/static"
+
+  tasks:
+    - name: Download database
+      copy:
+        dest: "{{ local_dir }}"
+        src: "{{ app_path }}/data.db"

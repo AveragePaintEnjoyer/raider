@@ -1,0 +1,28 @@
+- name: Database operations
+  hosts: webservers
+  become: true
+  vars:
+    # custom var -> change this to your own config
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+
+    # generic var
+    webapp_user: raider
+    webapp_home: "/srv/{{ webapp_user }}"
+    app_path: "/srv/{{ webapp_user }}/raider"
+    static_path: "/srv/{{ webapp_user }}/static"
+
+  tasks:
+    - name: Upload database (existing)
+      template:
+        src: "{{ local_dir }}/data.db"
+        dest: "{{ app_path }}"
+        mode: '0644'
+        owner: "{{ webapp_user }}"
+        group: "{{ webapp_user }}"
+      notify: Restart raider
+
+  handlers:
+    - name: Restart raider
+      systemd:
+        name: raider
+        state: restarted

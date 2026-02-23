@@ -1,0 +1,61 @@
+- name: Install specific go version
+  hosts: webservers
+  become: true
+
+  vars:
+    go_version: "1.25.3"
+    go_arch: "linux-amd64"
+    go_install_dir: "/usr/local"
+    go_root: "{{ go_install_dir }}/go"
+    go_tarball: "go{{ go_version }}.{{ go_arch }}.tar.gz"
+    go_download_url: "https://go.dev/dl/{{ go_tarball }}"
+
+  tasks:
+    - name: Ensure required packages are installed
+      ansible.builtin.apt:
+        name:
+          - curl
+          - tar
+        state: present
+        update_cache: yes
+
+    - name: Download Go {{ go_version }}
+      ansible.builtin.get_url:
+        url: "{{ go_download_url }}"
+        dest: "/tmp/{{ go_tarball }}"
+        mode: '0644'
+
+    - name: Remove existing Go installation
+      ansible.builtin.file:
+        path: "{{ go_root }}"
+        state: absent
+
+    - name: Extract Go archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ go_tarball }}"
+        dest: "{{ go_install_dir }}"
+        remote_src: yes
+        creates: "{{ go_root }}/bin/go"
+
+    - name: Add Go environment profile
+      ansible.builtin.copy:
+        dest: /etc/profile.d/go.sh
+        mode: '0644'
+        content: |
+          export GOROOT={{ go_root }}
+          export GOPATH=/opt/go
+          export PATH=$PATH:{{ go_root }}/bin:/opt/go/bin
+
+    - name: Create GOPATH directory
+      ansible.builtin.file:
+        path: /opt/go
+        state: directory
+        mode: '0755'
+
+    - name: Check Go version
+      ansible.builtin.command: "{{ go_root }}/bin/go version"
+      register: go_version_output
+      changed_when: false
+
+    - debug:
+        var: go_version_output.stdout

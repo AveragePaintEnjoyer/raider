@@ -1,0 +1,59 @@
+---
+- name: Basic web application server setup
+  hosts: webservers
+  become: true
+  vars:
+    webapp_user: raider
+    webapp_home: "/srv/{{ webapp_user }}"
+    ssh_dir: "{{ webapp_home }}/.ssh"
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+    git_name: git
+
+  tasks:
+    - name: Ensure system is up-to-date
+      apt:
+        upgrade: dist
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Create webapp user with home under /srv
+      user:
+        name: "{{ webapp_user }}"
+        home: "{{ webapp_home }}"
+        shell: /bin/bash
+        create_home: yes
+
+#    - name: Create .ssh directory
+#      file:
+#        path: "{{ ssh_dir }}"
+#        state: directory
+#        owner: "{{ webapp_user }}"
+#        group: "{{ webapp_user }}"
+#        mode: '0700'
+
+#    - name: Generate SSH key for git
+#      openssh_keypair:
+#        path: "{{ ssh_dir }}/{{ git_name }}"
+#        type: rsa
+#        size: 4096
+#        owner: "{{ webapp_user }}"
+#        group: "{{ webapp_user }}"
+#        mode: '0600'
+#      register: git_key
+
+#    - name: Create .ssh/config file
+#      copy:
+#        dest: "{{ ssh_dir }}/config"
+#        content: |
+#          Host git.app.root9.de
+#              HostName git.app.root9.de
+#              Port 2222
+#              IdentityFile {{ ssh_dir }}/{{ git_name }}
+#              User git
+#        owner: "{{ webapp_user }}"
+#        group: "{{ webapp_user }}"
+#        mode: '0600'
+
+#    - name: Show git public key
+#      debug:
+#        msg: "Git pubkey: {{ git_key.public_key }}"

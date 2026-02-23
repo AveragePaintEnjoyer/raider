@@ -1,0 +1,127 @@
+- name: Deploy raider git-app
+  hosts: webservers
+  become: true
+  vars:
+    # custom var -> change this to your own config
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+    domain: raider.app.root9.de
+    repo_url: "https://github.com/AveragePaintEnjoyer/raider.git"
+
+    # generic var
+    webapp_user: raider
+    webapp_home: "/srv/{{ webapp_user }}"
+    app_path: "/srv/{{ webapp_user }}/raider"
+    static_path: "/srv/{{ webapp_user }}/static"
+
+    # certificates -> bastellösung, muss noch bereinigt werden
+    ssl_cert_path: "/srv/django/certs/ssl.crt" # "{{ webapp_home }}/certs/ssl.crt"
+    ssl_key_path: "/srv/django/certs/ssl.key" # "{{ webapp_home }}/certs/ssl.key"
+  
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - git
+          - nginx
+          - sudo
+          - build-essential
+        update_cache: yes
+        state: present
+
+    - name: Ensure app directory exists
+      file:
+        path: "{{ webapp_home }}"
+        state: directory
+        owner: "{{ webapp_user }}"
+        group: "{{ webapp_user }}"
+        mode: '0755'
+
+    - name: Clone Git repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_path }}"
+        version: main
+      become_user: "{{ webapp_user }}"
+
+    - name: Upload .ENV
+      template:
+        src: "{{ local_dir }}/.env"
+        dest: "{{ app_path }}"
+        mode: '0644'
+
+    # Throws compiler error for some reason - needs to be fixed
+#    - name: Build raider binary
+#      command: >
+#        go build -o raider ./cmd/server/
+#      args:
+#        chdir: "{{ app_path }}"
+#      become_user: "{{ webapp_user }}"
+#      environment:
+#        PATH: "/usr/local/go/bin:{{ ansible_env.PATH }}"
+
+    - name: Install raider binary
+      copy:
+        src: "{{ app_path }}/raider"
+        dest: /usr/local/bin/raider
+        owner: root
+        group: root
+        mode: '0755'
+        remote_src: yes
+      notify: Restart raider
+
+    - name: Install systemd service
+      template:
+        src: "{{ local_dir }}/.config/raider.service.j2"
+        dest: /etc/systemd/system/raider.service
+        mode: '0644'
+      notify:
+        - Reload daemon
+        - Restart raider
+
+    - name: Enable raider service
+      systemd:
+        name: raider
+        enabled: true
+        state: started
+
+    - name: Upload NGINX config
+      template:
+        src: "{{ local_dir }}/.config/nginx.conf.j2"
+        dest: /etc/nginx/sites-available/{{ domain }}
+        mode: '0644'
+      notify: Reload nginx
+
+    - name: Enable NGINX site
+      file:
+        src: /etc/nginx/sites-available/{{ domain }}
+        dest: /etc/nginx/sites-enabled/{{ domain }}
+        state: link
+      notify: Reload nginx
+
+    - name: Ensure default site is disabled
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload nginx
+
+    - name: Ensure NGINX is enabled and running
+      systemd:
+        name: nginx
+        enabled: true
+        state: started
+
+  # Handler to reload NGINX
+  handlers:
+    - name: Reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
+
+    - name: Reload daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Restart raider
+      systemd:
+        name: raider
+        state: restarted

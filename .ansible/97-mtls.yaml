@@ -1,0 +1,112 @@
+- name: Replace nginx config with mtls setup
+  hosts: webservers
+  become: true
+  vars:
+    # custom var -> change this to your own config
+    local_dir: "/Users/nx/Code/Hubgit/raider"
+    domain: raider.app.root9.de
+    repo_url: "https://github.com/AveragePaintEnjoyer/raider.git"
+
+    # generic var
+    webapp_user: raider
+    webapp_home: "/srv/{{ webapp_user }}"
+    app_path: "/srv/{{ webapp_user }}/raider"
+    static_path: "/srv/{{ webapp_user }}/static"
+
+    # mtls
+    mtls_dir: /etc/nginx/mtls
+    client_name: niklas
+
+    # certificates -> bastellösung, muss noch bereinigt werden
+    ssl_cert_path: "/srv/django/certs/ssl.crt" # "{{ webapp_home }}/certs/ssl.crt"
+    ssl_key_path: "/srv/django/certs/ssl.key" # "{{ webapp_home }}/certs/ssl.key"
+  
+  tasks:
+    - name: Install crypto packages
+      apt:
+        name:
+          - openssl
+        state: present
+        update_cache: yes
+
+    - name: Create mtls directory
+      file:
+        path: "{{ mtls_dir }}/clients"
+        state: directory
+        mode: '0700'
+
+    - name: Create CA private key
+      command: >
+        openssl genrsa -out {{ mtls_dir }}/ca.key 4096
+      args:
+        creates: "{{ mtls_dir }}/ca.key"
+
+    - name: Create CA certificate
+      command: >
+        openssl req -x509 -new -nodes
+        -key {{ mtls_dir }}/ca.key
+        -sha256 -days 3650
+        -subj "/CN=www-ca"
+        -out {{ mtls_dir }}/ca.crt
+      args:
+        creates: "{{ mtls_dir }}/ca.crt"
+
+    - name: Generate client key
+      command: >
+        openssl genrsa -out {{ mtls_dir }}/clients/{{ client_name }}.key 2048
+      args:
+        creates: "{{ mtls_dir }}/clients/{{ client_name }}.key"
+
+    - name: Generate client CSR
+      command: >
+        openssl req -new
+        -key {{ mtls_dir }}/clients/{{ client_name }}.key
+        -subj "/CN={{ client_name }}"
+        -out {{ mtls_dir }}/clients/{{ client_name }}.csr
+      args:
+        creates: "{{ mtls_dir }}/clients/{{ client_name }}.csr"
+
+    - name: Sign client certificate
+      command: >
+        openssl x509 -req
+        -in {{ mtls_dir }}/clients/{{ client_name }}.csr
+        -CA {{ mtls_dir }}/ca.crt
+        -CAkey {{ mtls_dir }}/ca.key
+        -CAcreateserial
+        -out {{ mtls_dir }}/clients/{{ client_name }}.crt
+        -days 825 -sha256
+      args:
+        creates: "{{ mtls_dir }}/clients/{{ client_name }}.crt"
+
+    - name: Upload NGINX config
+      template:
+        src: "{{ local_dir }}/.config/nginx-ca.conf.j2"
+        dest: /etc/nginx/sites-available/{{ domain }}
+        mode: '0644'
+      notify: Reload nginx
+
+    - name: Enable NGINX site
+      file:
+        src: /etc/nginx/sites-available/{{ domain }}
+        dest: /etc/nginx/sites-enabled/{{ domain }}
+        state: link
+      notify: Reload nginx
+
+    - name: Ensure default site is disabled
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload nginx
+
+    - name: Ensure NGINX is enabled and running
+      systemd:
+        name: nginx
+        enabled: true
+        state: started
+
+  # Handler to reload NGINX
+  handlers:
+    - name: Reload nginx
+      systemd:
+        name: nginx
+        state: reloaded

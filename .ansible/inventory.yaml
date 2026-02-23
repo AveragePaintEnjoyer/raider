@@ -1,0 +1,5 @@
+webservers:
+  hosts:
+    www:
+      ansible_host: www.srv.root9.de
+      ansible_user: root
